@@ -46,7 +46,7 @@
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
 
-                    <ListBox Name="EmailEntry" ItemsSource="{Binding ListBoxData}" HorizontalContentAlignment="Stretch" Margin="10" SelectionChanged="EmailEntry_SelectionChanged">
+                    <ListBox Name="EmailEntry" ItemsSource="{Binding ListBoxData, Mode=TwoWay}" HorizontalContentAlignment="Stretch" Margin="10" SelectionChanged="EmailEntry_SelectionChanged">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <Border BorderThickness="0 0 0 1" BorderBrush="Black" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">

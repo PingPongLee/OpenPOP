@@ -72,23 +72,56 @@ namespace Email_WPF
 
         public MainWindow()
         {
-            InitializeComponent();            
+            InitializeComponent();
+            /*
+            this.DataContext = this;
+            List<Message> allEmail = FetchAllMessages(hostname, port, useSsl, username, password);
+
+            ListBoxData = new List<EmailEntry> { };
+            foreach (Message singleEmail in allEmail)
+            {
+                MessagePart theEmailTxt = singleEmail.FindFirstPlainTextVersion();
+                MessagePart theEmailHTML = singleEmail.FindFirstHtmlVersion();
+
+                // For show in listbox
+                string noLineBreaks = theEmailTxt.GetBodyAsText().ToString().Replace(System.Environment.NewLine, " ");
+                string partOfBody = noLineBreaks.Length <= 40 ? noLineBreaks : noLineBreaks.Substring(0, 40) + " ..";
+                string fromDisplayName = singleEmail.Headers.From.DisplayName.ToString();
+                if (fromDisplayName == "")
+                {
+                    fromDisplayName = singleEmail.Headers.From.Address.ToString();
+                }
+                fromDisplayName += " <" + singleEmail.Headers.From.Address.ToString() + ">";
+
+
+                ListBoxData.Add(new EmailEntry { from = fromDisplayName, bodyPart = partOfBody, messageID = singleEmail.Headers.MessageId.ToString() });
+            }*/
         }
 
         //Functions
-        public string readyUpListBoxData(MessagePart content, int truncate, OpenPop.Mime.Header.RfcMailAddress displayName) 
-        {
-            string noLineBreaks = content.GetBodyAsText().ToString().Replace(System.Environment.NewLine, " ");
-            string partOfBody = noLineBreaks.Length <= truncate ? noLineBreaks : noLineBreaks.Substring(0, truncate) + " ..";
-            string fromDisplayName = displayName.DisplayName.ToString();
-            if (displayName.DisplayName == "")
-            {
-                fromDisplayName = displayName.Address.ToString();
-            }
-            fromDisplayName += " <" + displayName.Address.ToString() + ">";
 
-            return partOfBody;
+        public class ListBoxDataClass
+        {
+            public Message theMessage { get; set; }
+            public int truncate { get; set; }
+
+            public string partOfBody { get; set; }
+            public string displayName { get; set; }
         }
+        public void readyUpListBoxData(ListBoxDataClass data)
+        {
+            MessagePart theEmailTxt = data.theMessage.FindFirstPlainTextVersion();
+            string noLineBreaks = theEmailTxt.GetBodyAsText().ToString().Replace(System.Environment.NewLine, " ");
+            data.partOfBody = noLineBreaks.Length <= data.truncate ? noLineBreaks : noLineBreaks.Substring(0, data.truncate) + " ..";
+            data.displayName = data.theMessage.Headers.From.DisplayName.ToString();
+            if (data.displayName == "")
+            {
+                data.displayName = data.theMessage.Headers.From.Address.ToString();
+            }
+            data.displayName += " <" + data.theMessage.Headers.From.Address.ToString() + ">";
+        }
+
+
 
         //Buttons
         private void NewEmailButton_Click(object sender, RoutedEventArgs e)
@@ -100,8 +133,7 @@ namespace Email_WPF
             this.Close();
         }
         private void MenuItem_Click(object sender, RoutedEventArgs e)
-        {
-            this.DataContext = this;
+        {  
             List<Message> allEmail = FetchAllMessages(hostname, port, useSsl, username, password);
 
             ListBoxData = new List<EmailEntry> { };
@@ -110,8 +142,13 @@ namespace Email_WPF
                 MessagePart theEmailTxt = singleEmail.FindFirstPlainTextVersion();
                 MessagePart theEmailHTML = singleEmail.FindFirstHtmlVersion();
 
+                var mailData = new ListBoxDataClass { theMessage = singleEmail, truncate = 40 };
+                readyUpListBoxData(mailData);
+                ListBoxData.Add(new EmailEntry { from = mailData.displayName, bodyPart = mailData.partOfBody, messageID = singleEmail.Headers.MessageId.ToString() });
+
                 // For show in listbox
-                string partOfBody = readyUpListBoxData(theEmailTxt, 40, singleEmail.Headers.From);
+
+                //string partOfBody = readyUpListBoxData(theEmailTxt, 40, singleEmail.Headers.From);
                 //string fromDisplayName = singleEmail.Headers.From.DisplayName.ToString();
                 //if (fromDisplayName == "")
                 //{
@@ -120,7 +157,7 @@ namespace Email_WPF
                 //fromDisplayName += " <" + singleEmail.Headers.From.Address.ToString() + ">";
 
 
-                ListBoxData.Add(new EmailEntry { from = fromDisplayName, bodyPart = partOfBody, messageID = singleEmail.Headers.MessageId.ToString() });
+                //ListBoxData.Add(new EmailEntry { from = fromDisplayName, bodyPart = partOfBody, messageID = singleEmail.Headers.MessageId.ToString() });
 
                 // SQL
                 string bodyTxt = theEmailTxt.GetBodyAsText().ToString();
@@ -134,9 +171,10 @@ namespace Email_WPF
                 SQLiteCommand cmd = new SQLiteCommand("INSERT INTO `emails`(`messageId`,`subject`,`body`,`sender`) VALUES ('" + singleEmail.Headers.MessageId + "','" + singleEmail.Headers.Subject + "',@Message,'" + singleEmail.Headers.From.Address + "')");
                 cmd.Parameters.Add(new SQLiteParameter("@Message", bodyTxt));
                 cmd.Connection = conn;
-                cmd.ExecuteNonQuery();
+                //cmd.ExecuteNonQuery();
                 conn.Close();
             }
+            this.DataContext = this;
         }
         private void EmailEntry_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {                     
