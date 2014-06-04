@@ -1,0 +1,20 @@
+﻿<Window x:Class="Email_WPF.NewMail"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="New E-Mail" Height="356.314" Width="537.543">
+    <Grid>
+        <TextBox Name="to" Height="23" Margin="95,10,10,0" TextWrapping="Wrap" Text="" VerticalAlignment="Top"/>
+        <Label Content="To:" HorizontalAlignment="Left" Margin="10,8,0,0" VerticalAlignment="Top"/>
+        <Label Content="Subject" HorizontalAlignment="Left" Margin="10,39,0,0" VerticalAlignment="Top"/>
+        <TextBox Name="subject" Height="23" Margin="95,41,10,0" TextWrapping="Wrap" VerticalAlignment="Top"/>
+        <RichTextBox Name="bodyTxt" Margin="10,70,10,32">
+            <FlowDocument>
+                <Paragraph>
+                    <Run Text=""/>
+                </Paragraph>
+            </FlowDocument>
+        </RichTextBox>
+        <Button Name="sendbtn" Content="Send" Margin="0,0,10,5" HorizontalAlignment="Right" Width="75" Height="22" VerticalAlignment="Bottom" Click="Button_Click"/>
+
+    </Grid>
+</Window>
