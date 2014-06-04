@@ -245,9 +245,10 @@ namespace Email_WPF
 
                         if (sqReader.GetString(sqReader.GetOrdinal("read")) == "0")
                         {
-                            string myUpdateQuery = "UPDATE `emails` SET `read`='1' WHERE `messageId`='" + selectedId.messageID + "'";
+                            /*string myUpdateQuery = "UPDATE `emails` SET `read`='1' WHERE `messageId`='" + selectedId.messageID + "'";
                             SQLiteCommand updateFromRead = new SQLiteCommand(myUpdateQuery, sqConnection);
-                            updateFromRead.ExecuteNonQuery();
+                            updateFromRead.ExecuteNonQuery();*/
+                            // Koden ovenfor har problemer med at hvis man vælger en ny emailentry inden den er færdig med at skrive, så låser det hele.
                         }
                     }
                     sqReader.Close();
