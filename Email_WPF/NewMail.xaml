@@ -14,7 +14,8 @@
                 </Paragraph>
             </FlowDocument>
         </RichTextBox>
-        <Button Name="sendbtn" Content="Send" Margin="0,0,10,5" HorizontalAlignment="Right" Width="75" Height="22" VerticalAlignment="Bottom" Click="Button_Click"/>
+        <Button Name="sendbtn" Content="Send" Margin="0,0,10,5" HorizontalAlignment="Right" Width="75" Height="22" VerticalAlignment="Bottom" Click="Send_Click"/>
+        <Label Name="isEncryptedTxt" Padding="5" Content="This mail will be sent as encrypted!" Margin="6,0,0,0" HorizontalAlignment="Left" Width="417" Height="32" VerticalAlignment="Bottom"/>
 
     </Grid>
 </Window>

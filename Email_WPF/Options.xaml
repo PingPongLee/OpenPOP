@@ -14,7 +14,7 @@
         <TextBox Name="smtphost" Height="23" Margin="152,169,10,0" TextWrapping="Wrap" Text="" VerticalAlignment="Top"/>
         <TextBox Name="smtpport" Height="23" Margin="152,200,10,0" TextWrapping="Wrap" Text="" VerticalAlignment="Top"/>
         <CheckBox Name="popssl" Content="True" HorizontalAlignment="Left" Margin="152,141,0,0" VerticalAlignment="Top" Height="16" Width="41"/>
-        <Button Content="Save" Margin="0,0,10,7" HorizontalAlignment="Right" Width="75" Height="22" VerticalAlignment="Bottom" Grid.Column="1" Click="Button_Click"/>
+        <Button Content="Save" Margin="0,0,10,7" HorizontalAlignment="Right" Width="75" Height="22" VerticalAlignment="Bottom" Grid.Column="1" Click="Save_Click"/>
         <Label Content="Username:" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top" Height="26" Width="66"/>
         <Label Content="Password:" HorizontalAlignment="Left" Margin="10,41,0,0" VerticalAlignment="Top" Height="26" Width="63"/>
         <TextBox Name="Username" Height="23" Margin="152,12,10,0" TextWrapping="Wrap" VerticalAlignment="Top"/>

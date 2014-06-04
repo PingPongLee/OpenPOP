@@ -22,8 +22,8 @@ using OpenPop.Pop3;
 using OpenPop.Common;
 using System.Reflection;
 using System.Data.SqlClient;
-using System.Security.Cryptography;
 using System.Collections.ObjectModel;
+using System.Security.Cryptography;
 
 namespace Email_WPF
 {
@@ -41,6 +41,15 @@ namespace Email_WPF
 
         //public List<EmailEntry> ListBoxData { get; set; }
         public ObservableCollection<EmailEntry> ListBoxData { get; set; }
+        /// <summary>
+        /// Gets a List containing all emailmessages
+        /// </summary>
+        /// <param name="hostname">POP Hostname</param>
+        /// <param name="port">POP port</param>
+        /// <param name="useSsl">Use SSL</param>
+        /// <param name="username">The username to logon with</param>
+        /// <param name="password">Password to logon with</param>
+        /// <returns>Messages</returns>
         public static List<Message> FetchAllMessages(string hostname, int port, bool useSsl, string username, string password)
         {
             using (Pop3Client client = new Pop3Client())
@@ -67,6 +76,9 @@ namespace Email_WPF
         }
 
         //Functions
+        /// <summary>
+        /// Gets all mails from Database sorted by date and time
+        /// </summary>
         public void getMailsFromDb()
         {
             string myConnString = "Data Source=db.s3db;Version=3;";
@@ -82,10 +94,11 @@ namespace Email_WPF
                 {
                     string from = sqReader.GetString(sqReader.GetOrdinal("sender"));
                     string subject = sqReader.GetString(sqReader.GetOrdinal("subject"));
-                    string msgid = sqReader.GetString(sqReader.GetOrdinal("messageId"));
+                    string msgid = sqReader.GetString(sqReader.GetOrdinal("messageId"));            
                     App.Current.Dispatcher.Invoke((Action)delegate
                     {
                         ListBoxData.Add(new EmailEntry { from = from, subject = subject, messageID = msgid });
+                        //EmailList.ItemTemplate.Triggers. <- Ændre baggrundsfarven.
                     });
                 }
                 sqReader.Close();
@@ -97,20 +110,90 @@ namespace Email_WPF
             finally
             {
                 sqConnection.Close();
-
             }
         }
+        /// <summary>
+        /// Processes and returns emails with data to fit in a ListBox for overview
+        /// </summary>
+        /// <param name="data">The data to process</param>
         public void readyUpListBoxData(ListBoxDataClass data)
         {
             MessagePart theEmailTxt = data.theMessage.FindFirstPlainTextVersion();
-            string noLineBreaks = theEmailTxt.GetBodyAsText().ToString().Replace(System.Environment.NewLine, " ");
-            data.partOfBody = noLineBreaks.Length <= data.truncate ? noLineBreaks : noLineBreaks.Substring(0, data.truncate) + " ..";
+            //string noLineBreaks = theEmailTxt.GetBodyAsText().ToString().Replace(System.Environment.NewLine, " ");
+            //data.partOfBody = noLineBreaks.Length <= data.truncate ? noLineBreaks : noLineBreaks.Substring(0, data.truncate) + " ..";
+            data.subject = data.theMessage.Headers.Subject;
             data.displayName = data.theMessage.Headers.From.DisplayName.ToString();
             if (data.displayName == "")
             {
                 data.displayName = data.theMessage.Headers.From.Address.ToString();
             }
             data.displayName += " <" + data.theMessage.Headers.From.Address.ToString() + ">";
+        }
+        /// <summary>
+        /// Simple check function, that returns true if the Message provided has no header data
+        /// </summary>
+        /// <param name="message">The message to check</param>
+        /// <returns>True/False</returns>
+        public bool isSpam(string message) //Super smart antispam mechanism!
+        {
+            if(message == "")
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+        /// <summary>
+        /// Decryption function, that decrypts the string given, based on AES encryption. Key and Initialization Vector is needed.
+        /// </summary>
+        /// <param name="cipherText">The message to decrypt</param>
+        /// <param name="Key">AES Key</param>
+        /// <param name="IV">AES Initialization vector</param>
+        /// <returns>Returns plain text string</returns>
+        static string DecryptMail(string cipherText, string Key, string IV) // Encryption function
+        {
+            // Check arguments. 
+            if (cipherText == null || cipherText.Length <= 0)
+                throw new ArgumentNullException("cipherText");
+            if (Key == null || Key.Length <= 0)
+                throw new ArgumentNullException("Key");
+            if (IV == null || IV.Length <= 0)
+                throw new ArgumentNullException("IV");
+
+            // Declare the string used to hold 
+            // the decrypted text. 
+            string plaintext = null;
+
+            // Create an RijndaelManaged object 
+            // with the specified key and IV. 
+            using (RijndaelManaged rijAlg = new RijndaelManaged())
+            {
+                byte[] convText = Convert.FromBase64String(cipherText);
+                rijAlg.Key = Convert.FromBase64String(Key);
+                rijAlg.IV = Convert.FromBase64String(IV);
+
+                // Create a decrytor to perform the stream transform.
+                ICryptoTransform decryptor = rijAlg.CreateDecryptor(rijAlg.Key, rijAlg.IV);
+
+                // Create the streams used for decryption. 
+                using (MemoryStream msDecrypt = new MemoryStream(convText))
+                {
+                    using (CryptoStream csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read))
+                    {
+                        using (StreamReader srDecrypt = new StreamReader(csDecrypt))
+                        {
+
+                            // Read the decrypted bytes from the decrypting stream 
+                            // and place them in a string.
+                            plaintext = srDecrypt.ReadToEnd();
+                        }
+                    }
+                }
+
+            }
+            return plaintext;
         }
 
         //Buttons
@@ -124,12 +207,14 @@ namespace Email_WPF
         {
             this.Close();
         }
-        private void MenuItem_Click(object sender, RoutedEventArgs e)
+        private void GetEmail_Click(object sender, RoutedEventArgs e)
         {
+            EmailList.SelectedIndex = -1;
+            ListBoxData.Clear();
+
             BackgroundWorker getNewMail = new BackgroundWorker();
             getNewMail.DoWork += newEmail;
             getNewMail.RunWorkerAsync();
-            getNewMail.RunWorkerCompleted += updateList;
         }
         private void Options_Click(object sender, RoutedEventArgs e)
         {
@@ -139,48 +224,45 @@ namespace Email_WPF
 
         private void EmailEntry_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            EmailEntry selectedId = EmailList.SelectedItems[0] as EmailEntry;
-
-            string myConnString = "Data Source=db.s3db;Version=3;";
-            string mySelectQuery = "SELECT * FROM `emails` WHERE `messageId`='" + selectedId.messageID + "'";
-            SQLiteConnection sqConnection = new SQLiteConnection(myConnString);
-            SQLiteCommand sqCommand = new SQLiteCommand(mySelectQuery, sqConnection);
-            sqConnection.Open();
-            try
+            if(EmailList.SelectedIndex != -1)
             {
-                SQLiteDataReader sqReader = sqCommand.ExecuteReader();
-                while (sqReader.Read())
+                EmailEntry selectedId = EmailList.SelectedItems[0] as EmailEntry;
+
+                string myConnString = "Data Source=db.s3db;Version=3;";
+                string mySelectQuery = "SELECT * FROM `emails` WHERE `messageId`='" + selectedId.messageID + "'";
+                SQLiteConnection sqConnection = new SQLiteConnection(myConnString);
+                SQLiteCommand sqCommand = new SQLiteCommand(mySelectQuery, sqConnection);
+                sqConnection.Open();
+                try
                 {
-                    from.Text = sqReader.GetString(sqReader.GetOrdinal("sender"));
-                    subject.Text = sqReader.GetString(sqReader.GetOrdinal("subject"));
-                    date.Content = sqReader.GetString(sqReader.GetOrdinal("time")) + " " + sqReader.GetString(sqReader.GetOrdinal("date"));             
-                    MailBody.NavigateToString(sqReader.GetString(sqReader.GetOrdinal("body")));
-
-                    if (sqReader.GetString(sqReader.GetOrdinal("read")) == "0")
+                    SQLiteDataReader sqReader = sqCommand.ExecuteReader();
+                    while (sqReader.Read())
                     {
-                        string myUpdateQuery = "UPDATE `emails` SET `read`='1' WHERE `messageId`='" + selectedId.messageID + "'";                       
-                        SQLiteCommand updateFromRead = new SQLiteCommand(myUpdateQuery, sqConnection);
-                        updateFromRead.ExecuteNonQuery();
+                        from.Text = sqReader.GetString(sqReader.GetOrdinal("sender"));
+                        subject.Text = sqReader.GetString(sqReader.GetOrdinal("subject"));
+                        date.Content = sqReader.GetString(sqReader.GetOrdinal("time")) + " " + sqReader.GetString(sqReader.GetOrdinal("date"));
+                        MailBody.NavigateToString(sqReader.GetString(sqReader.GetOrdinal("body")));
 
+                        if (sqReader.GetString(sqReader.GetOrdinal("read")) == "0")
+                        {
+                            string myUpdateQuery = "UPDATE `emails` SET `read`='1' WHERE `messageId`='" + selectedId.messageID + "'";
+                            SQLiteCommand updateFromRead = new SQLiteCommand(myUpdateQuery, sqConnection);
+                            updateFromRead.ExecuteNonQuery();
+                        }
                     }
+                    sqReader.Close();
                 }
-                sqReader.Close();
-            }
-            finally
-            {
-                sqConnection.Close();
-            }
+                finally
+                {
+                    sqConnection.Close();
+                }
+            }  
         }
     
         // BackgroundWorkers / Threads
         private void newEmail(object sender, DoWorkEventArgs e)
         {
-            List<Message> allEmail = FetchAllMessages(hostname, port, useSsl, username, password);
-            App.Current.Dispatcher.Invoke((Action)delegate // <--- HERE
-            {
-                ListBoxData.Clear();
-            });
-            
+            List<Message> allEmail = FetchAllMessages(hostname, port, useSsl, username, password);         
 
             //ListBoxData = new List<EmailEntry> { };
             foreach (Message singleEmail in allEmail)
@@ -191,59 +273,135 @@ namespace Email_WPF
                 // For show in listbox
                 var mailData = new ListBoxDataClass { theMessage = singleEmail, truncate = 40 };
                 readyUpListBoxData(mailData);
-                App.Current.Dispatcher.Invoke((Action)delegate // <--- HERE
-                {
-                    ListBoxData.Add(new EmailEntry { from = mailData.displayName, subject = mailData.partOfBody, messageID = singleEmail.Headers.MessageId.ToString() });
-                });
-
-                // SQL
-                string myConnString = "Data Source=db.s3db;Version=3;";
-                string mySelectQuery = "SELECT * FROM `emails` WHERE `messageId`='" + singleEmail.Headers.MessageId + "'";
-                SQLiteConnection conn = new SQLiteConnection(myConnString);
-                conn.Open();
-                SQLiteCommand cmdSelect = new SQLiteCommand(mySelectQuery, conn);
-                SQLiteDataReader exists = cmdSelect.ExecuteReader();
-                if (!exists.Read())
+                if(isSpam(singleEmail.Headers.MessageId) != true)
                 {
                     string bodyTxt = theEmailTxt.GetBodyAsText().ToString();
                     if (theEmailHTML != null)
                     {
                         bodyTxt = theEmailHTML.GetBodyAsText().ToString();
                     }
-                    string mailDate = singleEmail.Headers.DateSent.Year.ToString("0000") + "-" + singleEmail.Headers.DateSent.Month.ToString("00") + "-" + singleEmail.Headers.DateSent.Day.ToString("00");
-                    string mailTime = singleEmail.Headers.DateSent.Hour.ToString("00") + ":" + singleEmail.Headers.DateSent.Minute.ToString("00") + ":" + singleEmail.Headers.DateSent.Second.ToString("00");
-                    //MessageBox.Show(mailDate + "\n" + mailTime);
 
-                    SQLiteCommand cmdInsert = new SQLiteCommand("INSERT INTO `emails`(`messageId`,`subject`,`body`,`sender`, `read`, `date`, 'time') VALUES ('" + singleEmail.Headers.MessageId + "','" + singleEmail.Headers.Subject + "',@Message,'" + singleEmail.Headers.From.Address + "', '0', '" + mailDate + "', '" + mailTime + "')", conn);
-                    cmdInsert.Parameters.Add(new SQLiteParameter("@Message", bodyTxt));
-                    cmdInsert.ExecuteNonQuery();
+                    if (singleEmail.Headers.UnknownHeaders["isEncrypted"] == "true")
+                    { 
+                        try
+                        {
+                            using (RijndaelManaged myRijndael = new RijndaelManaged())
+                            {
+                                bodyTxt = bodyTxt.Replace("\r\n\r\n\r\n---\r\nDenne e-mail er fri for virus og malware fordi avast! Antivirus beskyttelse er aktiveret.\r\nhttp://www.avast.com\r\n", "");
+                                bodyTxt = DecryptMail(bodyTxt, singleEmail.Headers.UnknownHeaders["key"], singleEmail.Headers.UnknownHeaders["iv"]);
+                            }
+                        }
+                        catch
+                        {
+                            MessageBox.Show("Problems when trying to decrypt the message!", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        }
+                    }
+
+                    App.Current.Dispatcher.Invoke((Action)delegate
+                    {
+                        ListBoxData.Add(new EmailEntry { from = mailData.displayName, subject = mailData.subject, messageID = singleEmail.Headers.MessageId.ToString() });
+                    });
+                    // SQL
+                    string myConnString = "Data Source=db.s3db;Version=3;";
+                    string mySelectQuery = "SELECT * FROM `emails` WHERE `messageId`='" + singleEmail.Headers.MessageId + "'";
+                    SQLiteConnection conn = new SQLiteConnection(myConnString);
+                    conn.Open();
+                    SQLiteCommand cmdSelect = new SQLiteCommand(mySelectQuery, conn);
+                    SQLiteDataReader exists = cmdSelect.ExecuteReader();
+                    if (!exists.Read())
+                    {
+                        string mailDate = singleEmail.Headers.DateSent.Year.ToString("0000") + "-" + singleEmail.Headers.DateSent.Month.ToString("00") + "-" + singleEmail.Headers.DateSent.Day.ToString("00");
+                        string mailTime = singleEmail.Headers.DateSent.Hour.ToString("00") + ":" + singleEmail.Headers.DateSent.Minute.ToString("00") + ":" + singleEmail.Headers.DateSent.Second.ToString("00");
+
+                        SQLiteCommand cmdInsert = new SQLiteCommand("INSERT INTO `emails`(`messageId`,`subject`,`body`,`sender`, `read`, `date`, 'time') VALUES ('" + singleEmail.Headers.MessageId + "','" + singleEmail.Headers.Subject + "',@Message,'" + singleEmail.Headers.From.Address + "', '0', '" + mailDate + "', '" + mailTime + "')", conn);
+                        cmdInsert.Parameters.Add(new SQLiteParameter("@Message", bodyTxt));
+                        cmdInsert.ExecuteNonQuery();
+                    }
                     conn.Close();
-                }
-                
+                }                
             }
             getMailsFromDb();
-        }
-        private void updateList(object sender, RunWorkerCompletedEventArgs e)
-        {
-            this.DataContext = this;
-            EmailList.Items.Refresh();
+
+            // skal fjernes
+            //SQLHandler jahallo = new SQLHandler();
+            //SQLiteConnection nyconnection = jahallo.connect("db.s3db", 3);
+
+           
         }
     }
 
     // Classes
+    /// <summary>
+    /// Gets / Sets data for ListBox
+    /// </summary>
     public class ListBoxDataClass
     {
         public Message theMessage { get; set; }
         public int truncate { get; set; }
 
-        public string partOfBody { get; set; }
+        public string subject { get; set; }
         public string displayName { get; set; }
     }
+    /// <summary>
+    /// Gets / Sets email data to ListBox
+    /// </summary>
     public class EmailEntry
     {
         public string from { get; set; }
         public string subject { get; set; }
         public string messageID { get; set; }
+    }
+    /// <summary>
+    /// A Class to control SQL Queries and connections. (Under Construction)
+    /// </summary>
+    public class SQLHandler
+    {
+        string myConnString;
+
+        public SQLiteConnection connect(string file, int version)
+        {
+            myConnString = "Data Source=" + file + ";Version=" + version.ToString() + ";";
+            SQLiteConnection conn = new SQLiteConnection(myConnString);
+            conn.Open();
+            return conn;
+        }
+
+        public void getAllMails( ObservableCollection<EmailEntry> name, SQLiteConnection conn)
+        {
+            string mySelectQuery = "SELECT * FROM `emails` ORDER BY `date` DESC, `time` DESC";
+            SQLiteConnection sqConnection = new SQLiteConnection(myConnString);
+            SQLiteCommand sqCommand = new SQLiteCommand(mySelectQuery, sqConnection);
+            sqConnection.Open();
+            try
+            {
+                //ListBoxData = new List<EmailEntry> { };
+                SQLiteDataReader sqReader = sqCommand.ExecuteReader();
+                while (sqReader.Read())
+                {
+                    string from = sqReader.GetString(sqReader.GetOrdinal("sender"));
+                    string subject = sqReader.GetString(sqReader.GetOrdinal("subject"));
+                    string msgid = sqReader.GetString(sqReader.GetOrdinal("messageId"));
+                    App.Current.Dispatcher.Invoke((Action)delegate
+                    {
+                        name.Add(new EmailEntry { from = from, subject = subject, messageID = msgid });
+                    });
+                }
+                sqReader.Close();
+            }
+            catch
+            {
+                MessageBox.Show("Problems reading mails from database!", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                sqConnection.Close();
+            }
+        }
+
+        public void insertNewMail(SQLiteConnection conn)
+        {
+
+        }
     }
 }
 

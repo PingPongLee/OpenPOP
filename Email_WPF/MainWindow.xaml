@@ -28,7 +28,7 @@
                     <MenuItem Header="_Options" Click="Options_Click"/>
                     <!--<MenuItem Header="_About"/>-->
                 </MenuItem>
-                <MenuItem Header="_Get E-mail" Click="MenuItem_Click"/>
+                <MenuItem Header="_Get E-mail" Click="GetEmail_Click"/>
 
             </Menu>
             <StackPanel></StackPanel>
