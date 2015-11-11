@@ -86,6 +86,7 @@ namespace Email_WPF
             SQLiteConnection sqConnection = new SQLiteConnection(myConnString);
             SQLiteCommand sqCommand = new SQLiteCommand(mySelectQuery, sqConnection);
             sqConnection.Open();
+            MessageBox.Show("Hallo");
             try
             {
                 //ListBoxData = new List<EmailEntry> { };
