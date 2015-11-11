@@ -82,11 +82,11 @@ namespace Email_WPF
         public void getMailsFromDb()
         {
             string myConnString = "Data Source=db.s3db;Version=3;";
+            MessageBox.Show("Hvafuck");
             string mySelectQuery = "SELECT * FROM `emails` ORDER BY `date` DESC, `time` DESC";
             SQLiteConnection sqConnection = new SQLiteConnection(myConnString);
             SQLiteCommand sqCommand = new SQLiteCommand(mySelectQuery, sqConnection);
             sqConnection.Open();
-            MessageBox.Show("Hallo");
             try
             {
                 //ListBoxData = new List<EmailEntry> { };
